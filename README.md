@@ -4,7 +4,7 @@ This package provides a way to use effect handlers in Cangjie
 without the need for the special try-handle syntax hidden behind
 the experimental flag `--enable-eh`.
 
-> ![WARNING]
+> [!WARNING]
 > This does not allow for deferred resumptions.
 
 ## Minimal Example
