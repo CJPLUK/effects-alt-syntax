@@ -1,5 +1,8 @@
 package effects
 
+public import effects.internal.{Command, DoubleResumeException, UnhandledCommandException}
+import effects.internal.{HandlerFrame, ImmediateFrame, ImmediateHandlerReturn}
+
 public func perform<Cmd, Res>(cmd: Cmd): Res where Cmd <: Command<Res> {
     HandlerFrame.perf(cmd)
 }

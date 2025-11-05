@@ -6,7 +6,7 @@
  * See https://cangjie-lang.cn/pages/LICENSE for license information.
  */
 
-package effects
+package effects.internal
 
 // This class is used internally when an Exception occurs within an immediate
 // handler case

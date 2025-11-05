@@ -6,7 +6,7 @@
  * See https://cangjie-lang.cn/pages/LICENSE for license information.
  */
 
-package effects
+package effects.internal
 
 public abstract class HandlerCase {
     protected open func tryHandle<R1>(cmd: Command<R1>): Option<R1>

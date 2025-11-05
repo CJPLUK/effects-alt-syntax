@@ -6,7 +6,7 @@
  * See https://cangjie-lang.cn/pages/LICENSE for license information.
  */
 
-package effects
+package effects.internal
 
 public class DoubleResumeException <: Exception {
     public init() {
