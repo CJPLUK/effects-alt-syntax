@@ -7,6 +7,14 @@ the experimental flag `--enable-eh`.
 > [!WARNING]
 > This does not allow for deferred resumptions.
 
+## Setup
+
+Add this package as a dependency to your cjpm.toml config file with the following:
+```toml
+[dependencies]
+  effects = { git = "https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax.git", branch = "immediate-handlers" }
+```
+
 ## Minimal Example
 
 ```cangjie
