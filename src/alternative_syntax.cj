@@ -1,14 +1,32 @@
 package effects
 
-public import effects.internal.{Command, DoubleResumeException, UnhandledCommandException}
-import effects.internal.{HandlerFrame, ImmediateFrame, ImmediateHandlerReturn}
+public import effects.internal.{Command, DoubleResumeException, UnhandledCommandException, DeferredHandlerFn, ResumptionInternal, HandlerFrame}
+import effects.internal.{ImmediateFrame, DeferredFrame, ImmediateHandlerReturn}
+
+public type Resumption<Res, Ret> = ResumptionInternal<Res, Ret>
 
 public func perform<Cmd, Res>(cmd: Cmd): Res where Cmd <: Command<Res> {
     HandlerFrame.perf(cmd)
 }
 
+public func resume<Res, Ret>(r: Resumption<Res, Ret>, x: Res) {
+    HandlerFrame.proceed(r, x)
+}
+
 public class Handle<Cmd, Res> where Cmd <: Command<Res> {
     public Handle(let f: (Cmd) -> Res) {}
+}
+
+public class DeferredHandle<Cmd, Res> where Cmd <: Command<Res> {
+    public DeferredHandle(let f: DeferredHandlerFn<Cmd, Res, Unit>) {}
+}
+
+public func handle<Cmd, Res>(f: (Cmd) -> Res) where Cmd <: Command<Res> {
+    Handle(f)
+}
+
+public func handle<Cmd, Res>(f: (Cmd, Resumption<Res, Unit>) -> Unit) where Cmd <: Command<Res> {
+    DeferredHandle(f)
 }
 
 public class Finally {
@@ -22,11 +40,29 @@ where Cmd <: Command<Res> {
     frame.setImmediateHandler<Cmd, Res, Unit> { cmd: Cmd =>
         try {
             return ImmediateHandlerReturn.Result(h.f(cmd))
-        } catch (e: Exception) {
-            return ImmediateHandlerReturn<Res>.Exc(e)
+        } catch (exn: Exception) {
+            return ImmediateHandlerReturn<Res>.Exc(exn)
+        } catch (err: Error) {
+            return ImmediateHandlerReturn<Res>.Err(err)
         }
     }
 
+    frame.setFinally(final.f)
+    frame.start()
+}
+
+public func try_with_effects<Cmd, Res>( f: () -> Unit, h: DeferredHandle<Cmd, Res>, final!: Finally = Finally({=>})) where Cmd <: Command<Res> {
+    let frame = DeferredFrame(f)
+
+    frame.setDeferredHandler({ cmd: Cmd, r: Resumption<Res, Unit> =>
+        try {
+            h.f(cmd, r)
+        } catch (exn: Exception) {
+            HandlerFrame.failExn(r, exn)
+        } catch (err: Error) {
+            HandlerFrame.failErr(r, err)
+        }
+    })
     frame.setFinally(final.f)
     frame.start()
 }

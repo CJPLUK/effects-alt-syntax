@@ -44,6 +44,7 @@ public class ResumptionInternal<Res, Ret> <: Resumption<Res, Ret> {
         this.handler.response = r
         this.handler.frame.parent = HandlerFrame.getActiveFrame()
         this.handler.frame.handlerThread = unsafe { CJ_MRT_GetCurrentCJThread() }
+        unsafe { CJ_MRT_ThreadResumeAndWait(this.waitingThread) }
         this.handler.frame.mainLoop()
     }
 
@@ -58,7 +59,7 @@ public class ResumptionInternal<Res, Ret> <: Resumption<Res, Ret> {
     }
 }
 
-type HandlerFn<Cmd, Res, Ret> = (Cmd, ResumptionInternal<Res, Ret>) -> Ret
+public type DeferredHandlerFn<Cmd, Res, Ret> = (Cmd, ResumptionInternal<Res, Ret>) -> Ret
 
 // We need these intermediate class because there is currently no other way to represent
 // the existential types DeferredHandleCase<_, _, Ret> (used by DeferredFrame<Ret>) and
@@ -73,7 +74,7 @@ abstract class DeferredHandlerCase1<Res, Ret> <: DeferredHandlerCase0<Ret> {
 }
 
 class DeferredHandlerCase<Cmd, Res, Ret> <: DeferredHandlerCase1<Res, Ret> {
-    DeferredHandlerCase(frame: DeferredFrame<Ret>, let h: HandlerFn<Cmd, Res, Ret>) {
+    DeferredHandlerCase(frame: DeferredFrame<Ret>, let h: DeferredHandlerFn<Cmd, Res, Ret>) {
         super(frame)
     }
     var command: Option<Cmd> = None
@@ -108,7 +109,7 @@ enum HandlerRequest<Ret> {
     | Abort(Error)
 }
 
-class DeferredFrame<Ret> <: HandlerFrame {
+public class DeferredFrame<Ret> <: HandlerFrame {
     var handlerThread = unsafe { CJ_MRT_GetCurrentCJThread() }
     var handleeThread = ThreadHandle()
     var handlerRequest: HandlerRequest<Ret> = Invalid
@@ -116,14 +117,17 @@ class DeferredFrame<Ret> <: HandlerFrame {
     public DeferredFrame(let fn: () -> Ret) {}
     public func start(): Ret {
         // EXECUTED BY HANDLER
-        this.handleeThread = unsafe { CJ_MRT_GetCurrentCJThread() }
-        HandlerFrame.setActiveFrame(this)
-        try {
-            this.request(HandlerRequest<Ret>.Return(fn()))
-        } catch (exn: Exception) {
-            this.request(Throw(exn))
-        } catch (err: Error) {
-            this.request(Abort(err))
+        this.parent = HandlerFrame.getActiveFrame()
+        spawn {
+            this.handleeThread = unsafe { CJ_MRT_GetCurrentCJThread() }
+            HandlerFrame.setActiveFrame(this)
+            try {
+                this.request(HandlerRequest<Ret>.Return(fn()))
+            } catch (exn: Exception) {
+                this.request(Throw(exn))
+            } catch (err: Error) {
+                this.request(Abort(err))
+            }
         }
         unsafe { CJ_MRT_ThreadWait() }
         this.mainLoop()
@@ -150,7 +154,7 @@ class DeferredFrame<Ret> <: HandlerFrame {
         }
     }
 
-    public func setDeferredHandler<Cmd, Res>(h: HandlerFn<Cmd, Res, Ret>): Unit {
+    public func setDeferredHandler<Cmd, Res>(h: DeferredHandlerFn<Cmd, Res, Ret>): Unit {
         this.addHandlerCase(DeferredHandlerCase(this, h))
     }
 
