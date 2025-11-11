@@ -60,4 +60,18 @@ public abstract class HandlerFrame {
         }
         cmd.defaultImpl()
     }
+
+    public static func proceed<Res, Ret>(r: ResumptionInternal<Res, Ret>, arg: Res): Ret {
+        r.proceed(arg)
+    }
+
+    public static func failErr<Res, Ret> (r: ResumptionInternal<Res, Ret>, err: Error): Ret {
+        r.fail(err)
+    }
+
+    public static func failExn<Res, Ret>(r: ResumptionInternal<Res, Ret>, exn: Exception): Ret {
+        r.fail(exn)
+    }
 }
+
+abstract sealed class Resumption<Res, Ret> {}

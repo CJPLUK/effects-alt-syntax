@@ -12,3 +12,7 @@
   package-configuration = {}
 
 [dependencies]
+
+[target.aarch64-apple-darwin]
+  [target.aarch64-apple-darwin.bin-dependencies]
+    path-option = ["${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative"]

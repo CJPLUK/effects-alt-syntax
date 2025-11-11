@@ -1,18 +1,19 @@
-# Effect Handlers (non-deferred) Without Special Syntax
+# Effect Handlers Without Special Syntax
 
 This package provides a way to use effect handlers in Cangjie
 without the need for the special try-handle syntax hidden behind
 the experimental flag `--enable-eh`.
 
 > [!WARNING]
-> This does not allow for deferred resumptions.
+> This allows for deferred resumption but relies on a version of Cangjie newer than 1.0.3.
+> For something which works with Cangjie 1.0.3, look at the [immediate-handlers branch](https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax/tree/immediate-handlers)
 
 ## Setup
 
 Add this package as a dependency to your cjpm.toml config file with the following:
 ```toml
 [dependencies]
-  effects = { git = "https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax.git", branch = "immediate-handlers" }
+  effects = { git = "https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax.git", branch = "deferred-resumption" }
 ```
 
 ## Minimal Example
