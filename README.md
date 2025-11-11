@@ -5,7 +5,7 @@ without the need for the special try-handle syntax hidden behind
 the experimental flag `--enable-eh`.
 
 > [!WARNING]
-> This does not allow for deferred resumptions.
+> This does not allow for deferred resumptions, see the [deferred-resumption branch](https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax/tree/deferred-resumption) for that.
 
 ## Setup
 
