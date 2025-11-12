@@ -173,4 +173,38 @@ public class DeferredFrame<Ret> <: HandlerFrame {
         this.handlerRequest = req
         unsafe { CJ_MRT_ThreadResumeAndWait(this.handlerThread) }
     }
+
+    public func handle<Cmd, Res>(h: (Cmd) -> Res): This
+    where Cmd <: Command<Res> {
+        this.setImmediateHandler<Cmd, Res, Res> { cmd: Cmd =>
+            try {
+                return ImmediateHandlerReturn.Result(h(cmd))
+            } catch (exn: Exception) {
+                return ImmediateHandlerReturn<Res>.Exc(exn)
+            } catch (err: Error) {
+                return ImmediateHandlerReturn<Res>.Err(err)
+            }
+        }
+        this
+    }
+
+    public func handle<Cmd, Res>(h: (Cmd, ResumptionInternal<Res, Ret>) -> Ret): This
+    where Cmd <: Command<Res> {
+        let defferred_handler: (Cmd, ResumptionInternal<Res, Ret>) -> Ret = { cmd: Cmd, r: ResumptionInternal<Res, Ret> =>
+            try {
+                h(cmd, r)
+            } catch (exn: Exception) {
+                HandlerFrame.failExn<Res, Ret>(r, exn)
+            } catch (err: Error) {
+                HandlerFrame.failErr<Res, Ret>(r, err)
+            }
+        }
+        this.setDeferredHandler<Cmd, Res>(defferred_handler)
+        this
+    }
+
+    public func then_finally(f: () -> Unit) {
+        this.setFinally(f)
+        this.start()
+    }
 }

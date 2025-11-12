@@ -22,11 +22,14 @@ Add this package as a dependency to your cjpm.toml config file with the followin
 ## Minimal Example
 
 ```cangjie
-import effects.*
+import effects
 
-class Effect <: Command<Int64> {
+class Effect <: effects.Command<Int64> {
     Effect(let x: Int64) {}
-
+    public func defaultImpl() { x }
+}
+class Another <: effects.Command<Float64> {
+    Another(let x: Float64) {}
     public func defaultImpl() { x }
 }
 
@@ -34,33 +37,40 @@ main(): Int64 {
     println("Default implementation:")
     println(perform(Effect(6)))
 
-    let message: String = try_with_effects({=>
+    let message: String = effects.try_ {
         println("With different handler:")
-        println(perform(Effect(6)))
-        return "aoeu" // a value returned in this block is returned by the whole try_with_effects call
-    }, handle { e: Effect => e.x + 1 }
-    // Optional "finally clause":
-    // , Finally {=> println("...finally")}
-    )
+        println(effects.perform(Effect(6)))
+        return "aoeu"
+    } .handle {e: Effect =>
+        e.x + 1
+    } .handle {a: Another =>
+        a.x + 1.0
+    } .then_finally {} // not omissable
 
-    println("message") // aoeu
+    println(message)
 
-    let new_message: String = try_with_effects({=>
+    // try_deferrable is necessary to register deferred handlers
+    let new_message: String = effects.try_deferrable {
         println("With deferred handler:")
-        println(perform(Effect(7)))
+        println(effects.perform(Effect(7)))
         println("after perform")
-    }, // add a resumption argument here to automatically use deferred handlers:
-    handle {c: Effect, r: Resumption<Int64, String> =>
+        return "Normal execution"
+    // By adding an extra resumption argument to the lambda, this becomes
+    // a deferred handler
+    } .handle {c: Effect, r: effects.Resumption<Int64, String> =>
         println("in deferred handler")
         if (c.x == 7) {
             // Deferred handlers allow for early returns as well
             // as intentionally storing the resumption to use later
             return "Alert! 7 is a special number, abort normal execution"
-        } 
-        resume(r, c.x + 2)
-    })
+        }
+        effects.resume(r, c.x + 2)
+    // You can also use immediate handlers here too
+    } .handle {a: Another =>
+        a.x + 1.0
+    } .then_finally {}
 
-    println(new_message)
+    print(new_message)
 
     return 0
 }

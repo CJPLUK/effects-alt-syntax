@@ -65,4 +65,22 @@ public class ImmediateFrame<Ret> <: HandlerFrame {
             this.finalizer()
         }
     }
+
+    public func handle<Cmd, Res>(h: (Cmd) -> Res): This {
+        this.setImmediateHandler<Cmd, Res, Res> { cmd: Cmd =>
+            try {
+                return ImmediateHandlerReturn.Result(h(cmd))
+            } catch (exn: Exception) {
+                return ImmediateHandlerReturn<Res>.Exc(exn)
+            } catch (err: Error) {
+                return ImmediateHandlerReturn<Res>.Err(err)
+            }
+        }
+        this
+    }
+
+    public func then_finally(f: () -> Unit) {
+        this.setFinally(f)
+        this.start()
+    }
 }
