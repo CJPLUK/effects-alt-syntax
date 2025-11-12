@@ -9,7 +9,6 @@ the experimental flag `--enable-eh`.
 > For something which works with Cangjie 1.0.3, look at the [immediate-handlers branch](https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax/tree/immediate-handlers)
 
 ### Notes for improvements:
-- Allow return values from try-handle "expressions"
 - Allow multiple handlers
 
 ## Setup
@@ -46,15 +45,22 @@ main(): Int64 {
 
     println("message") // aoeu
 
-    try_with_effects({=>
+    let new_message: String = try_with_effects({=>
         println("With deferred handler:")
         println(perform(Effect(7)))
         println("after perform")
     }, // add a resumption argument here to automatically use deferred handlers:
-    handle {c: Effect, r: Resumption<Int64, Unit> =>
+    handle {c: Effect, r: Resumption<Int64, String> =>
         println("in deferred handler")
+        if (c.x == 7) {
+            // Deferred handlers allow for early returns as well
+            // as intentionally storing the resumption to use later
+            return "Alert! 7 is a special number, abort normal execution"
+        } 
         resume(r, c.x + 2)
     })
+
+    println(new_message)
 
     return 0
 }

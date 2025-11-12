@@ -17,15 +17,15 @@ public class Handle<Cmd, Res> where Cmd <: Command<Res> {
     public Handle(let f: (Cmd) -> Res) {}
 }
 
-public class DeferredHandle<Cmd, Res> where Cmd <: Command<Res> {
-    public DeferredHandle(let f: DeferredHandlerFn<Cmd, Res, Unit>) {}
+public class DeferredHandle<Cmd, Res, Ret> where Cmd <: Command<Res> {
+    public DeferredHandle(let f: DeferredHandlerFn<Cmd, Res, Ret>) {}
 }
 
 public func handle<Cmd, Res>(f: (Cmd) -> Res) where Cmd <: Command<Res> {
     Handle(f)
 }
 
-public func handle<Cmd, Res>(f: (Cmd, Resumption<Res, Unit>) -> Unit) where Cmd <: Command<Res> {
+public func handle<Cmd, Res, Ret>(f: (Cmd, Resumption<Res, Ret>) -> Ret) where Cmd <: Command<Res> {
     DeferredHandle(f)
 }
 
@@ -51,10 +51,10 @@ where Cmd <: Command<Res> {
     frame.start()
 }
 
-public func try_with_effects<Cmd, Res>( f: () -> Unit, h: DeferredHandle<Cmd, Res>, final!: Finally = Finally({=>})) where Cmd <: Command<Res> {
+public func try_with_effects<Cmd, Res, Ret>( f: () -> Ret, h: DeferredHandle<Cmd, Res, Ret>, final!: Finally = Finally({=>})): Ret where Cmd <: Command<Res> {
     let frame = DeferredFrame(f)
 
-    frame.setDeferredHandler({ cmd: Cmd, r: Resumption<Res, Unit> =>
+    frame.setDeferredHandler({ cmd: Cmd, r: Resumption<Res, Ret> =>
         try {
             h.f(cmd, r)
         } catch (exn: Exception) {
