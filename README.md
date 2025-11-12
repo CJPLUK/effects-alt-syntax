@@ -30,9 +30,10 @@ main(): Int64 {
     println("Default implementation:")
     println(perform(Effect(6)))
 
-    try_with_effects({=>
+    let message: String = try_with_effects({=>
         println("With different handler:")
         println(perform(Effect(6)))
+        return "aoeu" // a value returned in this block is returned by the whole try_with_effects call
     }, Handle { e: Effect => e.x + 1 }
     // Optional "finally clause":
     // , Finally {=> println("...finally")}

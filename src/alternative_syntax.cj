@@ -15,11 +15,11 @@ public class Finally {
     public Finally(let f: () -> Unit) {}
 }
 
-public func try_with_effects<Cmd, Res>( f: () -> Unit, h: Handle<Cmd, Res>, final!: Finally = Finally({=>}))
+public func try_with_effects<Cmd, Res, Ret>( f: () -> Ret, h: Handle<Cmd, Res>, final!: Finally = Finally({=>})): Ret
 where Cmd <: Command<Res> {
     let frame = ImmediateFrame(f)
 
-    frame.setImmediateHandler<Cmd, Res, Unit> { cmd: Cmd =>
+    frame.setImmediateHandler<Cmd, Res, Ret> { cmd: Cmd =>
         try {
             return ImmediateHandlerReturn.Result(h.f(cmd))
         } catch (e: Exception) {
