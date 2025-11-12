@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * This source file is part of the Cangjie project, licensed under Apache-2.0.
+ * 
+ * This is a modification of a file originally part of the stdx Cangjie library
+ * under the same license.
+ *
+ * See https://cangjie-lang.cn/pages/LICENSE for license information.
+ */
+
 package effects
 
 public import effects.internal.{Command, DoubleResumeException, UnhandledCommandException, DeferredHandlerFn, ResumptionInternal, HandlerFrame}
