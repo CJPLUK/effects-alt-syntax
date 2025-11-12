@@ -26,12 +26,12 @@ foreign func CJ_MRT_ThreadResumeAndWait(readyThread: ThreadHandle): Unit
 @FastNative
 foreign func CJ_MRT_ThreadReady(readyThread: ThreadHandle): Unit
 
-enum HandlerResponse<Res> {
+internal enum HandlerResponse<Res> {
     Resume(Res) | Throw(Exception) | Abort(Error) | Invalid
 }
 
 extend<Res> HandlerResponse<Res> {
-    func unpack<R1>(): R1 {
+    protected func unpack<R1>(): R1 {
         match (this) {
             case Resume(r) => (r as R1).getOrThrow()
             case Throw(exn) => throw exn
@@ -42,11 +42,13 @@ extend<Res> HandlerResponse<Res> {
 }
 
 public class ResumptionInternal<Res, Ret> <: Resumption<Res, Ret> {
-    let used = AtomicBool(false)
-    let waitingThread = unsafe { CJ_MRT_GetCurrentCJThread() }
+    private let used = AtomicBool(false)
+    private let waitingThread = unsafe { CJ_MRT_GetCurrentCJThread() }
     ResumptionInternal(let handler: DeferredHandlerCase1<Res, Ret>) {}
 
-    func respond(r: HandlerResponse<Res>): Ret {
+    // Allows handlers to do actions other than return a value
+    // (i.e. resume, throw, abort)
+    private func respond(r: HandlerResponse<Res>): Ret {
         // EXECUTED BY HANDLER
         if (this.used.swap(true)) {
             throw DoubleResumeException()
@@ -119,20 +121,22 @@ enum HandlerRequest<Ret> {
     | Abort(Error)
 }
 
-public class DeferredFrame<Ret> <: HandlerFrame {
+// Represents a try-handle-finally block which can register both immediate
+// and deferred handlers for any effect.
+public class DeferredFrame<Ret> <: HandlerFrameExpression<Ret> {
     var handlerThread = unsafe { CJ_MRT_GetCurrentCJThread() }
     var handleeThread = ThreadHandle()
     var handlerRequest: HandlerRequest<Ret> = Invalid
 
-    public DeferredFrame(let fn: () -> Ret) {}
-    public func start(): Ret {
-        // EXECUTED BY HANDLER
+    protected DeferredFrame(fn: () -> Ret) { super(fn) }
+    public override func start(): Ret {
+        // Running the `try` block
         this.parent = HandlerFrame.getActiveFrame()
         spawn {
             this.handleeThread = unsafe { CJ_MRT_GetCurrentCJThread() }
             HandlerFrame.setActiveFrame(this)
             try {
-                this.request(HandlerRequest<Ret>.Return(fn()))
+                this.request(HandlerRequest<Ret>.Return(this.fn()))
             } catch (exn: Exception) {
                 this.request(Throw(exn))
             } catch (err: Error) {
@@ -143,8 +147,8 @@ public class DeferredFrame<Ret> <: HandlerFrame {
         this.mainLoop()
     }
 
+    // Reacts to requests received from handlers
     func mainLoop(): Ret {
-        // EXECUTED BY HANDLER
         this.parent = HandlerFrame.getActiveFrame()
         match (this.handlerRequest) {
             case Perform(handlerCase) => handlerCase.fulfill()
@@ -164,30 +168,20 @@ public class DeferredFrame<Ret> <: HandlerFrame {
         }
     }
 
-    public func setDeferredHandler<Cmd, Res>(h: DeferredHandlerFn<Cmd, Res, Ret>): Unit {
+    func setDeferredHandler<Cmd, Res>(h: DeferredHandlerFn<Cmd, Res, Ret>): Unit {
         this.addHandlerCase(DeferredHandlerCase(this, h))
     }
 
     func request(req: HandlerRequest<Ret>) {
-        // EXECUTED BY HANDLEE
+        // Method only called by the handler
+        // (while inside of a `handle` block)
         this.handlerRequest = req
         unsafe { CJ_MRT_ThreadResumeAndWait(this.handlerThread) }
     }
 
-    public func handle<Cmd, Res>(h: (Cmd) -> Res): This
-    where Cmd <: Command<Res> {
-        this.setImmediateHandler<Cmd, Res, Res> { cmd: Cmd =>
-            try {
-                return ImmediateHandlerReturn.Result(h(cmd))
-            } catch (exn: Exception) {
-                return ImmediateHandlerReturn<Res>.Exc(exn)
-            } catch (err: Error) {
-                return ImmediateHandlerReturn<Res>.Err(err)
-            }
-        }
-        this
-    }
-
+    // Public method to construct the 'try-handle-finally' block before
+    // later using the `then_finally` method to provide the 'finally'
+    // as well as 'execute the block'.
     public func handle<Cmd, Res>(h: (Cmd, ResumptionInternal<Res, Ret>) -> Ret): This
     where Cmd <: Command<Res> {
         let defferred_handler: (Cmd, ResumptionInternal<Res, Ret>) -> Ret = { cmd: Cmd, r: ResumptionInternal<Res, Ret> =>
@@ -201,10 +195,5 @@ public class DeferredFrame<Ret> <: HandlerFrame {
         }
         this.setDeferredHandler<Cmd, Res>(defferred_handler)
         this
-    }
-
-    public func then_finally(f: () -> Unit) {
-        this.setFinally(f)
-        this.start()
     }
 }

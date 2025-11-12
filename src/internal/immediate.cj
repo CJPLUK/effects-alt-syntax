@@ -52,35 +52,20 @@ class ImmediateHandlerCase<Cmd, Res, Ret> <: HandlerCase {
     }
 }
 
-public class ImmediateFrame<Ret> <: HandlerFrame {
-    public ImmediateFrame(let fn: () -> Ret) {}
-    public func start(): Ret {
+// Represents a try-handle-finally block which only involves immediate
+// effect handlers.
+public class ImmediateFrame<Ret> <: HandlerFrameExpression<Ret> {
+    protected ImmediateFrame(fn: () -> Ret) { super(fn) }
+
+    public override func start(): Ret {
         let previous = HandlerFrame.getActiveFrame()
         this.parent = previous
         try {
             HandlerFrame.setActiveFrame(this)
-            fn()
+            this.fn()
         } finally {
             HandlerFrame.setActiveFrame(previous)
             this.finalizer()
         }
-    }
-
-    public func handle<Cmd, Res>(h: (Cmd) -> Res): This {
-        this.setImmediateHandler<Cmd, Res, Res> { cmd: Cmd =>
-            try {
-                return ImmediateHandlerReturn.Result(h(cmd))
-            } catch (exn: Exception) {
-                return ImmediateHandlerReturn<Res>.Exc(exn)
-            } catch (err: Error) {
-                return ImmediateHandlerReturn<Res>.Err(err)
-            }
-        }
-        this
-    }
-
-    public func then_finally(f: () -> Unit) {
-        this.setFinally(f)
-        this.start()
     }
 }
