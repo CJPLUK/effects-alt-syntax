@@ -46,8 +46,8 @@ public class ResumptionInternal<Res, Ret> <: Resumption<Res, Ret> {
     private let waitingThread = unsafe { CJ_MRT_GetCurrentCJThread() }
     ResumptionInternal(let handler: DeferredHandlerCase1<Res, Ret>) {}
 
-    // Allows handlers to do actions other than return a value
-    // (i.e. resume, throw, abort)
+    // Executed by the handler (handle block) from a different thread
+    // to the one in which the object was constructed (waitingThread)
     private func respond(r: HandlerResponse<Res>): Ret {
         // EXECUTED BY HANDLER
         if (this.used.swap(true)) {
@@ -113,6 +113,7 @@ class DeferredHandlerCase<Cmd, Res, Ret> <: DeferredHandlerCase1<Res, Ret> {
     }
 }
 
+// Requests from the `try` block
 enum HandlerRequest<Ret> {
     Invalid
     | Perform(DeferredHandlerCase0<Ret>)
@@ -130,9 +131,13 @@ public class DeferredFrame<Ret> <: HandlerFrameExpression<Ret> {
 
     protected DeferredFrame(fn: () -> Ret) { super(fn) }
     public override func start(): Ret {
-        // Running the `try` block
+        // Running the `try` block and handling the effects
         this.parent = HandlerFrame.getActiveFrame()
         spawn {
+            // Running the `try` block.
+            // Requests are handled by other thread by the ResumeAndWait
+            // runtime function (to main thread) and leaving a request
+            // in this.handlerRequest
             this.handleeThread = unsafe { CJ_MRT_GetCurrentCJThread() }
             HandlerFrame.setActiveFrame(this)
             try {
@@ -144,10 +149,13 @@ public class DeferredFrame<Ret> <: HandlerFrameExpression<Ret> {
             }
         }
         unsafe { CJ_MRT_ThreadWait() }
+        // Handles all "final" requests from the thread spawned above?
+        // i.e. return, throw, and abort
+        // performs are handled elsewhere??
         this.mainLoop()
     }
 
-    // Reacts to requests received from handlers
+    // Reacts to requests received from the 'handlee' (try-block)
     func mainLoop(): Ret {
         this.parent = HandlerFrame.getActiveFrame()
         match (this.handlerRequest) {
