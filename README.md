@@ -6,6 +6,7 @@ the experimental flag `--enable-eh`.
 
 > [!WARNING]
 > This does not allow for deferred resumptions, see the [deferred-resumption branch](https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax/tree/deferred-resumption) for that.
+> Early return from immediate handlers are also not supported (you always resume).
 
 ## Setup
 
